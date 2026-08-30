@@ -5,10 +5,9 @@ description: >-
   registering immutable plans, marking step progress (todo/in_progress/done/
   blocked/skipped), attaching incidents and inconsistencies as linked documents
   (never editing the plan itself), generating status reports, and answering
-  "what treatments are left to do". Also use to send notification emails about
-  plan execution. Trigger on words like "avancement", "progression", "incident",
-  "incohérence", "traitements restants", "état du plan", "suivi du plan",
-  "marquer l'étape", "clôturer l'incident".
+  "what treatments are left to do". Trigger on words like "avancement",
+  "progression", "incident", "incohérence", "traitements restants", "état du
+  plan", "suivi du plan", "marquer l'étape", "clôturer l'incident".
 ---
 
 # Skill: plan-manager
@@ -20,14 +19,14 @@ par l'agent `atomic-plan`, via le serveur MCP `plan-manager`.
 
 - Les plans (`plans/Plan-<objectif>-<date>.md`) sont **IMMUABLES**. Tu ne modifies
   JAMAIS le fichier plan.
-- La **source de vérité** de la persistance des plans est la base SQLite partagée
-  `registry.db` (tables `plans`, `plan_steps`, `plan_incidents`,
+- La **source de vérité** de la persistance des plans est la base partagée
+  (PostgreSQL `task_registry` — tables `plans`, `plan_steps`, `plan_incidents`,
   `plan_inconsistencies`, `plan_counters`), gérée par le MCP `plan-manager`.
   N'édite pas cette base à la main.
-- Les documents markdown (progression, incidents, incohérences, rapports) ne
-  sont plus que des **artefacts transitoires** (pièces jointes d'email), écrits
-  sous `/tmp/opencode/plan-manager/` — ils ne sont PAS une source de vérité.
-  L'ancien dossier `plans/.plan-manager/` est obsolète et supprimé.
+- Les documents markdown (progression, incidents, incohérences, rapports) sont des
+  **artefacts transitoires**, écrits sous `/tmp/opencode/plan-manager/` — ils ne
+  sont PAS une source de vérité. L'ancien dossier `plans/.plan-manager/` est
+  obsolète et supprimé.
 
 ## Outils MCP disponibles (serveur `plan-manager`)
 
@@ -38,14 +37,13 @@ par l'agent `atomic-plan`, via le serveur MCP `plan-manager`.
 | `plan_get` | Détail d'un plan (étapes + progression + rattachés). |
 | `progress_update` | Marquer l'avancement d'une étape (todo/in_progress/done/blocked/skipped). |
 | `progress_get` | Avancement actuel d'un plan (% + par étape). |
-| `incident_create` | Créer un incident rattaché (doc + **email**). |
-| `incident_resolve` | Clôturer un incident avec résolution (doc + **email**). |
+| `incident_create` | Créer un incident rattaché (persisté + doc). |
+| `incident_resolve` | Clôturer un incident avec résolution (persisté + doc). |
 | `incident_list` | Lister les incidents (filtrable par plan/statut). |
-| `inconsistency_create` | Signaler une incohérence (doc + **email**). |
+| `inconsistency_create` | Signaler une incohérence (persistée + doc). |
 | `inconsistency_list` | Lister les incohérences (filtrable par plan). |
 | `treatments_list` | **Liste des traitements à effectuer** (étapes non terminées). |
 | `plan_report` | Générer un rapport de statut markdown. |
-| `notify` | Envoyer une notification email libre. |
 
 Tous les outils prennent `rootPath` (racine du projet contenant `plans/`).
 
@@ -59,9 +57,9 @@ Tous les outils prennent `rootPath` (racine du projet contenant `plans/`).
    bon statut. Ne marque `done` que si l'étape est réellement terminée et vérifiée.
 3. **Incidents** : en cas de blocage/erreur à l'exécution, `incident_create`
    (sévérité low/medium/high/critical, titre + description, `stepId` si lié).
-   Envoie automatiquement un email. À la résolution : `incident_resolve`.
+   À la résolution : `incident_resolve`.
 4. **Incohérences** : en cas de contradiction détectée (étape vs étape, plan vs
-   plan), `inconsistency_create`. Envoie automatiquement un email.
+   plan), `inconsistency_create`.
 5. **Répondre à « quels traitements reste-t-il ? »** : `treatments_list(rootPath,
    planId?)` renvoie la liste des étapes non terminées.
 6. **Rapport** : `plan_report` à la fin (ou sur demande) pour un état consolidé.
@@ -76,12 +74,16 @@ Tous les outils prennent `rootPath` (racine du projet contenant `plans/`).
   (erreur, blocage) ; une **incohérence** est une contradiction logique entre
   étapes/plans ou un écart détecté avant/après exécution.
 - **IDs** : incidents `INC-###`, incohérences `INCO-###` (attribués par le MCP).
-- Ne mets jamais de secrets/mots de passe dans les documents ou emails.
+- Ne mets jamais de secrets/mots de passe dans les documents.
 
-## Notifications (automatiques par le MCP)
+## Notifications (v0.1.0 — par la plateforme, jamais par le MCP)
 
-- `incident_create`, `incident_resolve`, `inconsistency_create` → email automatique.
-- Pour tout autre besoin, utilise `notify(subject, body, attachment?)`.
+- Les incidents et incohérences sont **persistés en base** : la notification
+  email est dérivée par le daemon `opencode-notifier` (flux `plan_incidents` /
+  `plan_inconsistencies`). Le MCP `plan-manager` n'envoie **aucun email**.
+- L'outil `notify` a été **supprimé** du serveur MCP. Ne cherche pas à envoyer
+  d'email : écris les états (incident/incohérence/progression) et le notifier
+  fera le reste.
 
 ## Exemples de questions utilisateur → action
 

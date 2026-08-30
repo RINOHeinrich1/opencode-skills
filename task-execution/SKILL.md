@@ -92,7 +92,8 @@ AVAILABLE → RESERVED → IN_USE → RELEASED → AVAILABLE
 8. **Par sous-tâche mergée** : déployer via CI/CD — `deployment_record` +
    transitions `deploy_pending → deploying → deployed → post_deploy_verified`
    (jamais de déploiement manuel).
-9. `worktree_release` + rapport + email.
+9. `worktree_release` + rapport en artefact (`artifact_add`) — les notifications
+   email sont dérivées par `opencode-notifier`, jamais envoyées par l'agent.
 
 ## Outils complémentaires (déploiement / scope / décisions)
 
@@ -120,4 +121,4 @@ AVAILABLE → RESERVED → IN_USE → RELEASED → AVAILABLE
   l'agent demandeur (`by`), la session (`sessionId`) et la résolution
   (`decision_resolve`). Pour validation/review, la résolution est **couplée** à la
   transition vers `approved`/`rejected` + événement `CLOSED` (remarques).
-- Ne mets jamais de secrets dans le registre, les documents ou les emails.
+- Ne mets jamais de secrets dans le registre ou les documents.
