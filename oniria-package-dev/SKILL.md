@@ -83,3 +83,28 @@ npm run oniria:package -- inspect <dossier|archive>
 - Tests attendus : unité (règles métier pures), intégration (client, permissions, migrations), Playwright (vues/erreurs), garde d'architecture (imports/routes/registres interdits).
 - DoD : manifeste V3 valide + version incrémentée ; bundles autonomes ; aucun import/route/registre dans le cœur ; erreurs+idempotence+audit+secrets traités ; migrations/rollback vérifiés ; scénarios BDD verts ; `npm run oniria:build:check` synchronisé.
 - Anti-patterns interdits : importer `@pbn/db` ou un repository métier depuis un package ; `SiteRepository` global ; CRUD dupliqué en intention ; secrets dans le manifeste ; publier sans incrément ; modifier le cœur pour enregistrer une vue/intention.
+
+### Version d'un package — incrémenter AVANT de pousser (obligatoire)
+
+Une **version publiée est immuable** et le CI applique un **anti-doublon** : déployer
+une version déjà présente (stagée `var/oniria/packages/<id>/<version>/` ou installée
+en base `p7_installed_manifests`) est **refusé**.
+
+Quand tu modifies un package (fix/feature, ou toute modification de `oniria.package.json`,
+`src/`, `migrations/`, `ui/`…) :
+
+1. **Avant de créer/pousser ta branche `packages/<nom>`** : lis la version **courante
+   sur la branche stable** `origin/oniria-preprod` (pas seulement ta branche locale) :
+   `git fetch origin oniria-preprod`, puis
+   `git show origin/oniria-preprod:packages/p7-ecosystem/src/extensions/<nom>/oniria.package.json | grep '"version"'`.
+2. **Incrémente `version`** dans `oniria.package.json` : **patch par défaut**
+   (`x.y.z → x.y.z+1`) ; mineur/majeur si la modification l'exige (breaking, feature
+   majeure). Ne choisis **jamais** une version déjà publiée.
+3. Vérifie que la nouvelle version est **strictement supérieure** à la dernière version
+   disponible/active du package (dossiers stagés ou base) pour éviter le refus
+   anti-doublon du CI.
+4. Commit (modif + bump) puis push sur `packages/<nom>`. Si le CI refuse
+   (anti-doublon) : soit c'est un re-run après échec partiel → `DEPLOY_FORCE_VERSION=1`,
+   soit la version est déjà publiée → incrémente à nouveau.
+5. Le déploiement (`deploy-package.mjs`) fait ensuite stage + **activation auto**
+   (`DEPLOY_PACKAGE_OPERATOR_EMAIL`) — tu n'as pas à activer manuellement via le frontend.
